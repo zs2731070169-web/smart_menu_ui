@@ -227,10 +227,19 @@ async function handleSend() {
 
   try {
     const res = await sendChat(text)
-    const msg = res.message || {}
+    const data = res.data || {}
 
-    // 助手回复文本
-    const replyText = msg.recommend_menus || msg.message || '抱歉，我暂时无法理解您的问题，请换个方式描述。'
+    // 配送信息（地址校验成功）：拼接 formatted_address / distance / duration
+    const deliveryText = [data.formatted_address, data.distance, data.duration]
+        .filter(v => typeof v === 'string' && v.trim())
+        .join('\n')
+
+    // 优先使用推荐菜品文本，其次配送信息，其次外层 message（如订餐联系等纯文本回复 / 失败提示）
+    const replyText = data.recommend_menus
+        || deliveryText
+        || res.message
+        || '抱歉，我暂时无法理解您的问题，请换个方式描述。'
+
     messages.value.push({
       role: 'assistant',
       text: replyText,
@@ -238,8 +247,8 @@ async function handleSend() {
     })
 
     // 如果有推荐菜品 ID，触发框选
-    if (Array.isArray(msg.ids) && msg.ids.length > 0) {
-      emit('highlight', msg.ids)
+    if (Array.isArray(data.ids) && data.ids.length > 0) {
+      emit('highlight', data.ids)
     }
   } catch (e) {
     messages.value.push({
@@ -495,6 +504,7 @@ watch(messages, () => {
   font-size: 14px;
   line-height: 1.5;
   word-break: break-word;
+  white-space: pre-line;
 }
 
 .message-time {
